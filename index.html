@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <title>PROJECT</title>
+    <!--<link rel="stylesheet" href="stylesheet.css" type="text/css">-->
+    <meta http-equiv="Content-type" content="text/html; charset=UTF-8" />
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js" charset="UTF-8"></script><script src="js/three.js"></script>
+  <script src="js/OrbitControls.js"></script>
+  <style>
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1; /* Sit on top */
+      padding-top:20px;
+      padding:10px; /* Location of the box */
+      left: 0;
+      top: 0;
+      width: 40%; /* Full width */
+      height: 20%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color:#9DC0F3; /* Fallback color */
+
+    }
+
+    /* Modal Content */
+    .modal-content {
+      background-color: white;
+      margin: auto;
+      padding: 20px;
+      border: 2px solid #1152BC;
+      width: 80%;
+    }
+  </style>
+  </head>
+
+  <body>
+  <!--include the three.js library-->
+   <script src="js/OrbitControls.js"> </script>
+   <script type='text/javascript' src='js/dat.gui.min.js'></script>
+   <script src="js/OBJLoader.js"></script>
+   <script src="js/stats.min.js"></script>
+   <script src="js/Sky.js"></script>
+
+    <div class="container"></div>
+    <div id="myModal" class="modal">
+      <!-- Modal content -->
+      <div class="modal-content">
+        <span><button id="c">&times;</button></span>
+      </div>
+    </div>
+    <script>
+      var camera, container, renderer, scene, sun,stats, ground;
+      var particleSystem, particleCount, particles;
+      var streetlights = new THREE.Group()
+      var raycaster;
+      var sky, sunSphere;
+      var floors = new THREE.Object3D();
+      var floor,floor2,floor3,floor4,floor5;
+      var mouse = new THREE.Vector2();
+      var mouseX = 0, mouseY = 0;
+      var intersection = null;
+      var spheres = [];
+      var spheresIndex = 0;
+      var threshold = 0.1;
+      var pointSize = 0.05;
+      var width = 80;
+      var length = 160;
+      var rotateY = new THREE.Matrix4().makeRotationY( 0.005 )
+      var materials = [], parameters;
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+      var objectArray = [];
+      var geometry = new THREE.BufferGeometry();
+			var vertices = [];
+      var streetlightOption = {switch:'off'};
+        function streetlightControl(){
+        if (streetlightOption.switch=='off')
+        {
+         scene.remove(streetlights);
+         ground.receiveShadow=true;
+         floor.receiveShadow=true;
+         floor2.receiveShadow=true;
+         floor3.receiveShadow=true;
+         floor4.receiveShadow=true;
+         floor5.receiveShadow=true;
+    }
+      else if (streetlightOption.switch=='on')
+      {
+        ground.receiveShadow = false;
+        floor.receiveShadow = false;
+        floor2.receiveShadow = false;
+        floor3.receiveShadow = false;
+        floor4.receiveShadow = false;
+        floor5.receiveShadow = false;
+        scene.add(streetlights);
+      }
+  }
+  var dirLightControl = new function () {
+           this.intensity = 1;
+           this.inclination = 0.2;
+           this.azimuth = 0.19;
+       };
+   var colorControls=new function(){
+    this.color0 ="#e8e3d9";
+    this.color1 =[0,128,255];
+    this.color2 =[0,128,255,0.3];
+    this.color3 ={h:350,s:0.9,v:0.3};
+  }
+  function updateSun() {
+            var distance = 15000;
+            var alpha = Math.PI * (dirLightControl.inclination - 0.5);
+            var beta = 2 * Math.PI * (dirLightControl.azimuth - 0.5);
+            sun.intensity = dirLightControl.intensity;
+            sun.position.x = distance * Math.cos(beta);
+            sun.position.y = distance * Math.sin(beta) * Math.sin(alpha);
+            sun.position.z = distance * Math.sin(beta) * Math.cos(alpha);
+            sunsphere.position.copy(sun.position);
+            sun.color = new THREE.Color(colorControls.color0);
+            sunsphere.color = new THREE.Color(colorControls.color0);
+        }
+
+var init = function () {
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+  });
+  container = document.querySelector('.container');
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0xffffff, 0);
+  renderer.sortObjects = false;
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.BasicShadowMap;
+  container.appendChild(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    1,
+    20000
+  );
+  camera.position.z = 1000;
+  camera.position.y = 400;
+  camera.position.x = 900;
+  camera.lookAt(new THREE.Vector3(0,0,1));
+  scene.add(camera);
+
+  // snow
+          var textureLoader = new THREE.TextureLoader();
+          var sprite1 = textureLoader.load( 'snowflake1.png' );
+          var sprite2 = textureLoader.load( 'snowflake2.png' );
+          var sprite3 = textureLoader.load( 'snowflake3.png' );
+          var sprite4 = textureLoader.load( 'snowflake4.png' );
+          var sprite5 = textureLoader.load( 'snowflake5.png' );
+
+          for ( var i = 0; i < 7000; i ++ ) {
+            var x = Math.random() * 4000 - 1000;
+            var y = Math.random() * 4000 - 1000;
+            var z = Math.random() * 4000 - 1000;
+            vertices.push( x, y, z );
+          }
+          geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+
+          parameters = [
+            [[ 1.0, 0.2, 0.5 ], sprite2, 20 ],
+            [[ 0.95, 0.1, 0.5 ], sprite3, 15 ],
+            [[ 0.90, 0.05, 0.5 ], sprite1, 10 ],
+            [[ 0.85, 0, 0.5 ], sprite5, 8 ],
+            [[ 0.80, 0, 0.5 ], sprite4, 5 ]
+          ];
+
+          for ( var i = 0; i < parameters.length; i ++ ) {
+            var color = parameters[ i ][ 0 ];
+            var sprite = parameters[ i ][ 1 ];
+            var size = parameters[ i ][ 2 ];
+            materials[ i ] = new THREE.PointsMaterial( { size: size, map: sprite, blending: THREE.AdditiveBlending, depthTest: false, transparent: true } );
+            materials[ i ].color.setHSL( color[ 0 ], color[ 1 ], color[ 2 ] );
+            var particles = new THREE.Points( geometry, materials[ i ] );
+            objectArray.push(particles)
+            //scene.add(particles);
+          }
+//load the texture
+var texture13 = new THREE.TextureLoader().load( 'img/brickwall.jpg' );
+var texture8 = new THREE.TextureLoader().load( 'img/ChauChakWingBuilding.jpg');
+var texture11 = new THREE.TextureLoader().load( 'img/ITBuilding.png');
+var texture1 = new THREE.TextureLoader().load('img/BuildingMain.jpg');
+var texture9 = new THREE.TextureLoader().load('img/VickiSaraBuilding.jpg');
+var texture10= new THREE.TextureLoader().load('img/Building10.jpg');
+//Load The Bench
+var objLoader = new THREE.OBJLoader();
+objLoader.setPath('model/');
+objLoader.load('Bench1.obj',function(object){
+  object.position.x+=1300;
+  object.position.y-=5;
+  object.position.z+=1900;
+  scene.add(object);
+});
+ground=new THREE.Mesh(
+	new THREE.PlaneGeometry(6000,5000),
+	new THREE.MeshPhongMaterial({
+		color:0x27DF30,
+		side: THREE.DoubleSide
+		})
+	);
+//10,11
+  floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(1000, 1500),
+    new THREE.MeshPhongMaterial({
+      color: 0xCCCCCC,
+      side: THREE.FrontSide
+    })
+  );
+
+	floor.rotation.x=-Math.PI/2;
+	floor.position.set(1550,10,-450);
+  ground.rotation.x = -Math.PI / 2;
+  ground.name="ground";
+  ground.receiveShadow = false;
+//library
+  floor2 = new THREE.Mesh(
+    new THREE.PlaneGeometry(900, 1500),
+    new THREE.MeshPhongMaterial({
+      color: 0xCCCCCC,
+      side: THREE.FrontSide
+    })
+  );
+
+floor2.rotation.x=-Math.PI/2;
+	floor2.position.set(-2200,10,1250);
+//2,1,7,4,3,9,12
+floor3 = new THREE.Mesh(
+    new THREE.PlaneGeometry(1500, 1500),
+    new THREE.MeshPhongMaterial({
+      color: 0xCCCCCC,
+      side: THREE.FrontSide
+    })
+  );
+floor3.rotation.x=-Math.PI/2;
+floor3.position.set(50,10,-450);
+//8
+floor4=new THREE.Mesh(
+	new THREE.PlaneGeometry(700,1000),
+	new THREE.MeshPhongMaterial({
+		color: 0xCCCCCC,
+		side: THREE.FrontSide
+		})
+	);
+floor4.rotation.x=-Math.PI/2;
+floor4.position.set(-1200,10,1050);
+//6
+floor5=new THREE.Mesh(
+	new THREE.PlaneGeometry(700,1500),
+	new THREE.MeshPhongMaterial({
+		color: 0xCCCCCC,
+		side: THREE.FrontSide
+		})
+	);
+floor5.rotation.x=-Math.PI/2;
+floor5.position.set(-1200,10,-450);
+// floor.receiveShadow=true;
+// floor2.receiveShadow=true;
+  scene.add(ground);
+  scene.add(floor);
+  scene.add(floor2);
+  scene.add(floor3);
+  scene.add(floor4);
+  scene.add(floor5);
+//10
+	var box1 = new THREE.BoxGeometry( 300, 700, 300 );
+	var material1 = new THREE.MeshPhongMaterial( {map:texture10} );
+	var cube1= new THREE.Mesh( box1, material1 );
+	cube1.position.set(1500,330,-500);
+	cube1.name="Building 10 \n";
+	cube1.userData=" Building 10 offers a range a bright and airy classrooms. Building 10 also houses Student Centre and International Student Centre.";
+	cube1.castShadow=true;
+  cube1.receiveShadow=false;
+	scene.add( cube1 );
+//11
+	var box2 = new THREE.BoxGeometry( 600, 900, 400 );
+	var material2 = new THREE.MeshPhongMaterial( {map:texture11} );
+	var cube2= new THREE.Mesh( box2, material2 );
+	cube2.position.set(1500,250,-900);
+	cube2.name="Faculty of Engineering and IT (FEIT) Building.\n";
+	cube2.userData="FEIT Building opened in 2014, and accommodates the Faculty of Engineering and IT, along with many of its specialist facilities.";
+	cube2.castShadow=true;
+  cube2.receiveShadow = false;
+	scene.add( cube2 );
+//building 1
+	for(var i=0;i<4;i++){
+		var box3=new THREE.BoxGeometry(300,200,300);
+		var box4=new THREE.BoxGeometry(250,50,250);
+		var material3=new THREE.MeshPhongMaterial({map:texture1});
+		var material4=new THREE.MeshPhongMaterial({map:texture1});
+		var cube3=new THREE.Mesh(box3, material3);
+		var cube4=new THREE.Mesh(box4, material4);
+		var y3=200*i+50*i+50;
+		var y4=y3+125;
+		cube3.position.set(0,y3+80,-800);
+		cube4.position.set(0,y4+80,-800);
+		cube3.name="Tower Building\n";
+		cube4.name="Tower Building\n";
+		cube3.userData="The Tower building houses most of the administrative unit of UTS along with the student centre.";
+		cube4.userData="The Tower building houses most of the administrative unit of UTS along with the student centre.";
+		cube3.castShadow=true;
+		cube4.castShadow=true;
+		scene.add(cube3);
+		scene.add(cube4);
+	    }
+
+//5a
+	var box5 = new THREE.BoxGeometry( 700, 200, 200 );
+	var material5 = new THREE.MeshPhongMaterial( {color:0xB2701A} );
+	var cube5= new THREE.Mesh( box5, material5 );
+	cube5.position.set(-2200,110,800);
+	scene.add( cube5 );
+	var box6 = new THREE.BoxGeometry( 400, 200, 200 );
+	var material6 = new THREE.MeshPhongMaterial( {color:0xB2701A} );
+	var cube6= new THREE.Mesh( box6, material6 );
+	cube6.position.set(-2200,310,800);
+	cube5.name="UTS Library\n";
+	cube6.name="UTS Library\n";
+	cube5.userData="UTS Library provides access for staff, students and alumni to eJournals, eBooks and books, journals and audiovisual items.";
+	cube6.userData="UTS Library provides access for staff, students and alumni to eJournals, eBooks and books, journals and audiovisual items.";
+	cube5.castShadow=true;
+	cube6.castShadow=true;
+	scene.add( cube6 );
+
+	var box7=new THREE.BoxGeometry(300,350,700);
+	var material7=new THREE.MeshPhongMaterial({color:0xB2701A});
+	var cube7=new THREE.Mesh(box7,material7);
+	cube7.position.set(-2200,210,1400);
+	cube7.name="Building 5, Block B,C and D\n";
+	cube7.userData="This building houses several faculties and research centre including Faculty of Law, School of the Built Environment.";
+	cube7.castShadow=true;
+	scene.add(cube7);
+//8
+	var box8=new THREE.BoxGeometry(300,650,200);
+	var material8=new THREE.MeshPhongMaterial({map:texture8});
+	var cube8=new THREE.Mesh(box8,material8);
+	cube8.position.set(-1150,330,1200);
+	scene.add(cube8);
+	var box8a=new THREE.BoxGeometry(200,350,200);
+	var material8a=new THREE.MeshPhongMaterial({map:texture8});
+	var cube8a=new THREE.Mesh(box8a,material8a);
+	cube8a.position.set(-1250,190,1000);
+	scene.add(cube8a);
+	var box8b=new THREE.BoxGeometry(200,500,200);
+	var material8b=new THREE.MeshPhongMaterial({map:texture8});
+	var cube8b=new THREE.Mesh(box8b,material8b);
+	cube8b.position.set(-1300,240,1200);
+	cube8.name="Dr. Chau Chak Wing Building\n";
+	cube8a.name="Dr. Chau Chak Wing Building\n";
+	cube8b.name="Dr. Chau Chak Wing Building\n";
+	cube8.userData="The building accommodates teaching, learning, research and office space for the UTS Business School.";
+	cube8a.userData="The building accommodates teaching, learning, research and office space for the UTS Business School.";
+	cube8b.userData="The building accommodates teaching, learning, research and office space for the UTS Business School.";
+	cube8.castShadow=true;
+	cube8a.castShadow=true;
+	cube8b.castShadow=true;
+	scene.add(cube8b);
+
+//7
+	var box9=new THREE.BoxGeometry(1000,600,300);
+	var material9=new THREE.MeshPhongMaterial({map:texture9});
+	var cube9=new THREE.Mesh(box9,material9);
+	cube9.position.set(250,310,100);
+	cube9.name="Vicki Sara Building\n";
+	cube9.userData="The building is home to Faculty of Science administration and specialist facilities, and the Graduate School of Health.";
+	cube9.castShadow=true;
+	scene.add(cube9);
+
+//4
+	var box10=new THREE.BoxGeometry(300,600,700);
+	var material10=new THREE.MeshPhongMaterial({color:0xF7DE99});
+	var cube10=new THREE.Mesh(box10,material10);
+	cube10.position.set(-400,310,-100);
+	cube10.name="Building 4\n";
+	cube10.userData="Building 4 is the science building which has science labs, computer labs, and areas for studying.";
+	cube10.castShadow=true;
+	scene.add(cube10);
+
+//3
+	var b1=new THREE.BoxGeometry(300,630,170);
+	var m1=new THREE.MeshPhongMaterial({color:0xF7DE99});
+	var c1=new THREE.Mesh(b1,m1);
+	c1.name="The Bon Marche Building\n";
+	c1.userData="The building accommodates specialist facilities for the Faculty of Arts and Social Sciences.";
+	c1.castShadow=true;
+	c1.position.set(-400,310,-600);
+
+	var b2=new THREE.BoxGeometry(100,630,230);
+	var m2=new THREE.MeshPhongMaterial({color:0xF7DE99});
+	var c2=new THREE.Mesh(b2,m2);
+	c2.name="The Bon Marche Building\n";
+	c2.userData="The building accommodates specialist facilities for the Faculty of Arts and Social Sciences.";
+	c2.castShadow=true;
+	c2.position.set(-500,310,-800);
+
+	var b3=new THREE.BoxGeometry(300,630,170);
+	var m3=new THREE.MeshPhongMaterial({color:0xF7DE99});
+	var c3=new THREE.Mesh(b3,m3);
+	c3.name="The Bon Marche Building\n";
+	c3.userData="The building accommodates specialist facilities for the Faculty of Arts and Social Sciences.";
+	c3.castShadow=true;
+	c3.position.set(-400,310,-1000);
+	scene.add(c1);
+	scene.add(c2);
+	scene.add(c3);
+//9
+	var box11=new THREE.BoxGeometry(200,500,200);
+	var material11=new THREE.MeshPhongMaterial({color:0xD8B450});
+	var cube11=new THREE.Mesh(box11,material11);
+	cube11.position.set(-300,230,-800);
+	cube11.name="The Loft\n";
+	cube11.userData="The Loft@UTS has both indoor and outdoor spaces, with a shady courtyard that's perfect for when you're after some fresh air.";
+	scene.add(cube11);
+//6
+	var box12=new THREE.BoxGeometry(400,400,600);
+	var material12=new THREE.MeshPhongMaterial({color:0xB8AA9C});
+	var cube12=new THREE.Mesh(box12,material12);
+	cube12.position.set(-1150,210,-600);
+	cube12.name="Peter Johnson Building\n";
+	cube12.userData="This is the building for Design, Architecture and Building. It also contains UTS gallery and DAB cafe.";
+	cube12.castShadow=true;
+	scene.add(cube12);
+//bridge
+	var box_br=new THREE.BoxGeometry(500,80,50);
+	var mat_br=new THREE.MeshPhongMaterial({color:0xB8AA9C});
+	var br=new THREE.Mesh(box_br,mat_br);
+	br.name="Foot Bridge\n";
+	br.userData="This bridge connects Peter Johnson building with The Tower Building.";
+	br.position.set(-700,210,-480);
+	scene.add(br);
+
+//2
+	var box13=new THREE.BoxGeometry(500,350,300);
+	var material13=new THREE.MeshPhongMaterial({map:texture13});
+	var cube13=new THREE.Mesh(box13,material13);
+	cube13.position.set(450,200,-800);
+	cube13.name="UTS Central\n";
+	cube13.userData="UTS Central, which is currently under construction and is intended as a central hub for the campus.";
+	cube13.castShadow=true;
+	scene.add(cube13);
+
+	var box14=new THREE.BoxGeometry(310,330,300);
+	var material14=new THREE.MeshPhongMaterial({map:texture13});
+	var cube14=new THREE.Mesh(box14,material14);
+	cube14.position.set(355,400,-800);
+	cube14.name="UTS Central\n";
+	cube14.userData="UTS Central, which is currently under construction and is intended as a central hub for the campus.";
+	cube14.castShadow=true;
+	scene.add(cube14);
+
+//Raycasting
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+window.addEventListener( 'click', onMouseClick, false );
+
+// add sky
+initSky();
+
+//function to close the pop-up information modal
+function closeButton(n){
+  document.getElementById('myModal').style.display="none";
+}
+//function to open the pop-up information modal box
+function onMouseClick( e ) {
+		mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;;
+		mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+		raycaster.setFromCamera( mouse, camera );
+		var intersects = raycaster.intersectObjects( scene.children );
+		if (intersects.length ){
+			var target=intersects[0].object;
+			if(target.name && target.name!="ground"){
+        var content='<br>'+'Name: '+target.name+'<br>'+'<br>'+'Info: '+target.userData+'<br>'+'<br>'+'<form><input type="button" value="Close" id="but" style="position:relative;bottom:0px;right=0px"></form>';
+        document.getElementById('myModal').innerHTML=content;
+        document.getElementById('myModal').style.display="block";
+        document.getElementById('but').addEventListener('click',closeButton);
+
+			}
+		}
+	}
+//create street light function
+streetlightControl();
+function  streetlight(x,y,z,n){
+  for (var j =0;j<n;j++)
+       {
+        var loopa = 300*j;
+        var lamppostcylinder = new THREE.CylinderGeometry(2,2,150,8,1,false);
+        var lamppostmatirial= new THREE.MeshPhongMaterial({color:00000000});
+        var lamppost = new THREE.Mesh(lamppostcylinder,lamppostmatirial);
+        lamppost.position.set(x+loopa,y+75,z);
+        lamppost.castShadow=true;
+        scene.add(lamppost);
+
+        var lanternsphere = new THREE.SphereGeometry(7,4,4);
+        var lanternmatirial = new THREE.MeshLambertMaterial({color:0xffffff});
+        var lantern = new THREE.Mesh(lanternsphere,lanternmatirial);
+        lantern.position.set(x+loopa,y+147,z-3);
+        lantern.castShadow=true;
+        scene.add(lantern);
+        var pointColor = 0xffff00;
+        var lanternLight = new THREE.PointLight(pointColor);
+        lanternLight.distance = 130;
+        lanternLight.intensity = 30;
+        lanternLight.decay = 3;
+        lanternLight.position.set(x+loopa,y+90,z);
+        streetlights.add(lanternLight);
+      }
+  }
+      streetlight(1100,0,-1180,4);
+      streetlight(-1400,0,-1180,2);
+      streetlight(0,0,-1180,3);
+      streetlight(1100,0,280,4);
+      streetlight(-1400,0,280,2);
+      streetlight(-1400,0,580,2);
+      streetlight(-2400,0,530,3); //create street lights at some position
+
+  //Create Tree function
+  function createTree2nd(x,y,z){
+  var tree = new THREE.Group();
+  var trunkGeometry = new THREE.CylinderGeometry(10,20,10);
+  var trunkMaterial = new THREE.MeshPhongMaterial({color: 0x49311c});
+  var trunk= new THREE.Mesh(trunkGeometry,trunkMaterial);
+  tree.add(trunk);
+  trunk.position.set(x,y,z);
+  trunk.scale.set(1.5,7.5,1.5);
+  var leavesGeometry = new THREE.ConeGeometry(60, 100, 300);
+  var leavesMaterial = new THREE.MeshPhongMaterial({ color: 0x3d5e3a });
+  var leavesBottom = new THREE.Mesh(leavesGeometry, leavesMaterial);
+  leavesBottom.position.set(x,y+50,z);
+  tree.add(leavesBottom);
+  var leavesMiddle = new THREE.Mesh(leavesGeometry, leavesMaterial);
+  leavesMiddle.position.set(x,y+120,z);
+  tree.add(leavesMiddle);
+  var leavesTop = new THREE.Mesh(leavesGeometry, leavesMaterial);
+  leavesTop.position.set(x,y+160,z);
+  tree.add(leavesTop);
+  scene.add(tree);
+}
+createTree2nd(1600,40,1500);
+createTree2nd(1900,40,1300);
+createTree2nd(1800,40,1500); //Create 3 Trees
+  //Create a different type of Tree
+  function createTree(x,y,z){
+geometry = new THREE.BoxGeometry( 100, 100, 100 );
+var leaveDarkMaterial = new THREE.MeshLambertMaterial( { color: 0x91E56E } );
+var leaveLightMaterial = new THREE.MeshLambertMaterial( { color: 0xA2FF7A } );
+var leaveDarkDarkMaterial = new THREE.MeshLambertMaterial( { color: 0x71B356 } );
+var stemMaterial = new THREE.MeshLambertMaterial( { color: 0x7D5A4F } );
+var stem = new THREE.Mesh( geometry, stemMaterial );
+stem.position.set( x, y, z );
+stem.scale.set( 0.3, 1.5, 0.3 );
+var squareLeave01 = new THREE.Mesh( geometry, leaveDarkMaterial );
+squareLeave01.position.set( x+50, y+160, z+50 );
+squareLeave01.scale.set( 0.8, 0.8, 0.8 );
+var squareLeave02 = new THREE.Mesh( geometry, leaveDarkMaterial );
+squareLeave02.position.set( x-40, y+130, z-40 );
+squareLeave02.scale.set( 0.7, 0.7, 0.7 );
+var squareLeave03 = new THREE.Mesh( geometry, leaveDarkMaterial );
+squareLeave03.position.set( x+40, y+170, z-50 );
+squareLeave03.scale.set( 0.7, 0.7, 0.7 );
+var leaveDark = new THREE.Mesh( geometry, leaveDarkMaterial );
+leaveDark.position.set( x, y+120, z );
+leaveDark.scale.set( 1, 2, 1 );
+var leaveLight = new THREE.Mesh( geometry, leaveLightMaterial );
+leaveLight.position.set( x,y+120,z );
+leaveLight.scale.set( 1.1, 0.5, 1.1 );
+var ground = new THREE.Mesh( geometry, leaveDarkDarkMaterial );
+ground.position.set( x, y-100, z );
+ground.scale.set( 2.4, 0.8, 2.4 );
+
+tree = new THREE.Group();
+tree.add( leaveDark );
+tree.add( leaveLight );
+tree.add( squareLeave01 );
+tree.add( squareLeave02 );
+tree.add( squareLeave03 );
+tree.add( ground );
+tree.add( stem );
+scene.add( tree );
+  }
+createTree (50,100,-280);
+createTree(500,100,-280);
+createTree(1500,100,500); //create 3 trees
+
+  // --- SETUP LIGHTS ----------------------------------------------------------------
+
+   sun = new THREE.DirectionalLight(0xe8e3d9, 1);
+   sun.position.set(0, 8000, 0);
+   sun.target.position.set(0, 0, 0);
+   sun.castShadow = true;
+   sun.shadow.camera.near = 1;
+   sun.shadow.camera.far = 7000;
+   sun.shadow.camera.right = 4024;
+   sun.shadow.camera.left = -4024;
+   sun.shadow.camera.top = 4024;
+   sun.shadow.camera.bottom = -4024;
+   sun.shadow.mapSize.width = 4024;
+   sun.shadow.mapSize.height = 4024;
+   sunsphere = new THREE.Mesh(
+    					new THREE.SphereBufferGeometry( 500, 1600, 800 ),
+
+    					new THREE.MeshBasicMaterial( { color: 0xffffff } )
+    					);
+   sunsphere.position.copy(sun.position);
+   sunsphere.castShadow=false;
+   scene.add(sunsphere);
+   scene.add(sun);
+
+  // --- INTERACTION STUFF -----------------------------------------------------------
+  var controls = new THREE.OrbitControls(camera, container);
+  controls.enableDamping = true;
+  controls.enableZoom = false;
+  controls.maxPolarAngle = Math.PI * 85 / 180;
+  controls.minPolarAngle = Math.PI / 4;
+};
+
+var loop = function () {
+  render()
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+};
+
+window.addEventListener( 'resize', function() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}, false);
+
+init();
+loop();
+
+//controls
+controls = new THREE.OrbitControls( camera, renderer.domElement );
+window.addEventListener( 'resize', function() {
+  windowHalfX = window.innerWidth / 2;
+
+	windowHalfY = window.innerHeight / 2;
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}, false);
+
+//Create GUI Controller
+var gui;
+  gui = new dat.GUI();
+  var switchlight = gui.addFolder('switchlight');
+  var lightCtrl = gui.addFolder('Lighting');
+       lightCtrl.add(dirLightControl, 'intensity', 0, 2, 0.1).onChange(updateSun);
+       lightCtrl.add(dirLightControl, 'inclination', 0, 0.4, 0.0001).onChange(updateSun);
+       lightCtrl.add(dirLightControl, 'azimuth', 0, 0.38, 0.0001).onChange(updateSun);
+       var lightcolor=gui.addFolder('suncolor');
+       lightcolor.addColor(colorControls,'color0').onChange(updateSun);
+  switchlight.add(streetlightOption,'switch',['on','off']).onChange(streetlightControl);
+  var params = {
+    SnowOption: "Off",
+  };
+  gui.add(params, 'SnowOption',['On','Off'] ).onChange(SnowControl);
+function SnowControl(){
+  if(params.SnowOption=='Off'){
+  for (var i = objectArray.length - 1; i >= 0; i--)
+      scene.remove(objectArray[i]);
+  }
+  else if (params.SnowOption=='On')
+    {
+    for (var i = objectArray.length - 1; i >= 0; i--)
+        scene.add(objectArray[i]);
+  }
+}
+  gui.open();
+  //change ground
+  var changeGround=gui.addFolder('Change Ground');
+  var groundControl = {
+           season: "Spring"
+       };
+	changeGround.add(groundControl,'season',['Spring','Summer','Autumn','Winter']).onChange(updateGround);
+	changeGround.open();
+
+  function updateGround(){
+    for (var i = objectArray.length - 1; i >= 0; i--)
+        scene.remove(objectArray[i]);
+	if(groundControl.season=="Spring"){scene.getObjectByName("ground").material.color.setHex(0x27DF30);}
+	else if(groundControl.season=="Summer"){scene.getObjectByName("ground").material.color.setHex(0x97DF27);}
+	else if(groundControl.season=="Autumn"){scene.getObjectByName("ground").material.color.setHex(0xD4C11E);}
+	else {
+    for (var i = objectArray.length - 1; i >= 0; i--)
+        scene.add(objectArray[i]);
+    scene.getObjectByName("ground").material.color.setHex(0xE7FDFC);}
+	}
+
+  var positionControl = new function () {
+             this.x= 1300;
+            };
+    var changePosition=gui.addFolder('Change Position');
+  	changePosition.add(positionControl,'x',-2000,2000,1).onChange(updatePosition);
+  	changePosition.open();
+
+    function updatePosition(){
+      var objLoader = new THREE.OBJLoader();
+  objLoader.setPath('model/');
+  objLoader.load('Bench1.obj',function(object){
+    object.position.x+=positionControl.x;
+    object.position.y-=5;
+    object.position.z+=1900;
+    scene.add(object);
+  });
+    }
+function onDocumentKeyPress( event ) {
+        var keyCode = event.which;
+        var positionDelta = 70;
+        var rotationDelta = 0.5;
+        //console.log(keyCode);
+        //A
+        if ( keyCode == 97 )
+        {
+            camera.position.x -= positionDelta;
+        }
+        //D
+        else if ( keyCode == 100 )
+        {
+            camera.position.x += positionDelta;
+        }
+        //W
+        else if ( keyCode == 119 )
+        {
+            camera.position.z -= positionDelta;
+        }
+        //S
+        else if ( keyCode == 115 )
+        {
+            camera.position.z += positionDelta;
+        }
+        //Q
+        else if ( keyCode == 113 )
+        {
+            camera.position.y += positionDelta;
+        }
+        //E
+        else if ( keyCode == 101 )
+        {
+            camera.position.y -= positionDelta;
+        }
+        //T
+        else if ( keyCode == 116 )
+        {
+            camera.rotation.x += rotationDelta;
+        }
+        //G
+        else if ( keyCode == 103 )
+        {
+            camera.rotation.x -= rotationDelta;
+        }
+        //F
+        else if ( keyCode == 102 )
+        {
+            camera.rotation.y += rotationDelta;
+        }
+        //H
+        else if ( keyCode == 104 )
+        {
+            camera.rotation.y -= rotationDelta;
+        }
+    };
+    function initSky() {
+    				// Add Sky
+    				sky = new THREE.Sky();
+    				sky.scale.setScalar( 11450000 );
+    				scene.add( sky );
+    				// Add Sun Helper
+    				sunSphere = new THREE.Mesh(
+    					new THREE.SphereBufferGeometry( 20000, 1600, 800 ),
+    					new THREE.MeshBasicMaterial( { color: 0xffffff } )
+    				);
+    				sunSphere.position.y = 30000;
+    				sunSphere.visible = false;
+    			//	scene.add( sunSphere );
+
+            /// GUI
+    				var effectController = {
+    					turbidity: 10,
+    					rayleigh: 2,
+    					mieCoefficient: 0.005,
+    					mieDirectionalG: 0.8,
+    					luminance: 1,
+    					MorningToEvening: 0.49, // elevation / inclination
+    					SpringToWinter: 0.25, // Facing front,
+    					sun: ! true
+    				};
+    				var distance = 400000;
+    				function guiChanged() {
+    					var uniforms = sky.material.uniforms;
+    					uniforms[ "turbidity" ].value = effectController.turbidity;
+    					uniforms[ "rayleigh" ].value = effectController.rayleigh;
+    					uniforms[ "luminance" ].value = effectController.luminance;
+    					uniforms[ "mieCoefficient" ].value = effectController.mieCoefficient;
+    					uniforms[ "mieDirectionalG" ].value = effectController.mieDirectionalG;
+    					var theta = Math.PI * ( effectController.MorningToEvening - 0.5 );
+    					var phi = 2 * Math.PI * ( effectController.SpringToWinter - 0.5 );
+    					sunSphere.position.x = distance * Math.cos( phi );
+    					sunSphere.position.y = distance * Math.sin( phi ) * Math.sin( theta );
+    					sunSphere.position.z = distance * Math.sin( phi ) * Math.cos( theta );
+    					sunSphere.visible = effectController.sun;
+    					uniforms[ "sunPosition" ].value.copy( sunSphere.position );
+    					renderer.render( scene, camera );
+    				}
+
+    		/*	var gui = new dat.GUI();
+    				gui.add( effectController, "MorningToEvening", 0, 1, 0.0001 ).onChange( guiChanged );
+    				gui.add( effectController, "SpringToWinter", 0, 1, 0.0001 ).onChange( guiChanged );
+    				gui.add( effectController, "sun" ).onChange( guiChanged ); */
+    				guiChanged();
+    }
+    //Camera Direction Control
+    document.addEventListener( 'keypress', onDocumentKeyPress, false );
+    //Render
+    function render() {
+      var time = Date.now() * 0.00004;
+        camera.lookAt( scene.position );
+        for ( var i = 0; i < scene.children.length; i ++ ) {
+          var object = scene.children[ i ];
+          if ( object instanceof THREE.Points ) {
+            object.rotation.y = time * ( i < 4 ? i + 1 : - ( i + 1 ) );
+          }
+        }
+        renderer.render( scene, camera );
+    };
+    </script>
+  </body>
+</html>

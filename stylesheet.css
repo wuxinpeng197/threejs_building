@@ -1,0 +1,19 @@
+body {
+	margin: 0;
+	font-family: Monospace, Arial, Sans-serif;
+	background-color: #000;
+	color: #fff;
+	margin: 0px;
+	overflow: hidden;
+}
+
+canvas {
+	width: 100%;
+	height: 100%;
+}
+
+
+#panel {
+    position: absolute;
+    right:100px;
+}
